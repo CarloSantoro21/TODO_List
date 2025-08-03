@@ -1,92 +1,67 @@
 from fastapi import APIRouter, HTTPException
 from typing import List
 from app.schemas import Todo, TodoCreate, TodoUpdate
+from app.services import (
+    get_all_todos as get_all_todos_service, 
+    get_todo_by_id as get_todo_by_id_service, 
+    create_todo as create_todo_service, 
+    update_todo as update_todo_service, 
+    delete_todo as delete_todo_service
+)
 
 router = APIRouter(
     prefix="/todos",
     tags=["todos"]
 )
 
-fake_todos_db = [
-    {
-        "id": 1,
-        "title": "Aprender FastAPI",
-        "description": "Crear una API REST con Python",
-        "completed": False,
-        "created_at": "2024-01-15T10:00:00"
-    },
-    {
-        "id": 2,
-        "title": "Configurar Supabase",
-        "description": "Conectar la base de datos",
-        "completed": True,
-        "created_at": "2024-01-15T11:00:00"
-    }
-]
-
-# GET all todos
 @router.get("/", response_model=List[Todo])
-async def get_todos():
-    return fake_todos_db
+async def get_todos_endpoint():
+    try:
+        todos = get_all_todos_service()
+        return todos
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error al obtener TODOs")
 
-# GET a specific todo by ID
 @router.get("/{todo_id}", response_model=Todo)
-async def get_todo(todo_id: int):
-    for todo in fake_todos_db:
-        if todo["id"] == todo_id:
-            return todo
-    raise HTTPException(status_code=404, detail="Todo not found")
+async def get_todo_endpoint(todo_id: int):
+    try:
+        todo = get_todo_by_id_service(todo_id)
+        if todo is None:
+            raise HTTPException(status_code=404, detail="Todo not found")
+        return todo 
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Internal server error")
 
-# POST a new todo
-@router.post("/", response_model=Todo) # Lo que se envía es un Todo
-async def create_todo(todo: TodoCreate): # Lo que se recibe es un TodoCreate
-    new_id = max([t["id"] for t in fake_todos_db]) + 1 if fake_todos_db else 1
-    new_todo = {
-        "id":new_id,
-        "title": todo.title,
-        "description": todo.description,
-        "completed": todo.completed,
-        "created_at": "2024-01-15T12:00:00"  # Hardcoded for now
-    }
-    fake_todos_db.append(new_todo)
-    return new_todo
-
-""" Usaremos solo PATCH para actualizar parcialmente un todo y no PUT.
-@router.put("/{todo_id}", response_model=Todo) # PUT reemplaza el todo completo
-async def update_todo(todo_id: int, todo_update: TodoCreate):
-    for i, todo in enumerate(fake_todos_db):
-        if todo["id"] == todo_id:
-            updated_todo = {
-                "id": todo_id,
-                "title": todo_update.title,
-                "description": todo_update.description,
-                "completed": todo_update.completed,
-                "created_at": todo["created_at"]  # Keep original creation date
-            }
-            fake_todos_db[i] = updated_todo
-            return updated_todo
-    raise HTTPException(status_code=404, detail="Todo not found")
-"""
+@router.post("/", response_model=Todo) # Lo que se manda al front es un Todo
+async def create_todo_endpoint(todo: TodoCreate): # Lo que se recibe en el endpoint es un TodoCreate
+    try:
+        todo = create_todo_service(todo)
+        return todo 
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error creating the todo")
 
 @router.patch("/{todo_id}", response_model=Todo) # PATCH actualiza solo algunos campos
-async def patch_todo(todo_id: int, todo_update: TodoUpdate):
-    for i, todo in enumerate(fake_todos_db):
-        if todo["id"] == todo_id:
-            updated_todo = {
-                "id": todo_id,
-                "title": todo_update.title if todo_update.title else todo["title"],
-                "description": todo_update.description if todo_update.description else todo["description"],
-                "completed": todo_update.completed if todo_update.completed is not None else todo["completed"],
-                "created_at": todo["created_at"]  # Keep original creation date
-            }
-            fake_todos_db[i] = updated_todo
-            return updated_todo
-    raise HTTPException(status_code=404, detail="Todo not found")
+async def patch_todo_endpoint(todo_id: int, todo_update: TodoUpdate):
+    try:
+        todo = update_todo_service(todo_id, todo_update)
+        if todo is None:
+            raise HTTPException(status_code=404, detail="Todo not found")
+        return todo 
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error al actualizar TODO")
 
 @router.delete("/{todo_id}")
-async def delete_todo(todo_id: int):
-    for i, todo in enumerate(fake_todos_db):
-        if todo["id"] == todo_id:
-            fake_todos_db.pop(i)
-            return {"message": "TODO eliminado correctamente"}
-    raise HTTPException(status_code=404, detail="Todo not found")
+async def delete_todo_endpoint(todo_id: int):
+    try:
+        success = delete_todo_service(todo_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="Todo not found")
+        return {"message": "TODO eliminado correctamente"}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail="Error al eliminar TODO")
