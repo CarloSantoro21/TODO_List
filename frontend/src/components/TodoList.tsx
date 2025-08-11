@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Todo } from '@/types/todo';
 import { getTodos } from '@/lib/api';
+import TodoForm from './TodoForm';
 
 export default function TodoList() {
     // estados del componente
@@ -10,24 +11,28 @@ export default function TodoList() {
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
 
+    async function loadTodos() {
+        try {
+            setLoading(true);
+            setError(null);
+            const todosData = await getTodos();
+            setTodos(todosData);
+        } catch (err) {
+            setError('Error al cargar los TODOs');
+            console.error(err);
+        } finally {
+            setLoading(false);
+        }
+    }
+
     // cargar los TODOs al montar el componente
     useEffect(() => {
-        async function loadTodos() {
-            try {
-                setLoading(true);
-                setError(null);
-                const todosData = await getTodos();
-                setTodos(todosData);
-            } catch (err) {
-                setError('Error al cargar los TODOs');
-                console.error(err);
-            } finally {
-                setLoading(false);
-            }
-        }
-
         loadTodos();
     }, []);
+
+    const handleTodoCreated = () => {
+        loadTodos(); // Recargar la lista
+    };
 
     if (loading) {
         return (
@@ -56,6 +61,9 @@ export default function TodoList() {
                     Tienes {todos.length} {todos.length === 1 ? 'tarea' : 'tareas'}
                 </p>
             </div>
+
+            <TodoForm onTodoCreated={handleTodoCreated} />
+
             {/*LISTA DE TODOs */}
             {todos.length === 0 ? (
                 <div className="text-center py-12">
@@ -77,9 +85,9 @@ export default function TodoList() {
                             <div className="flex items-start justify-between">
                                 <div className="flex-1">
                                     <div className="flex items-center mb-2">
-                                        <span className="text-2xl mr-3">
-                                            {todo.completed ? '✅' : '⏳'}
-                                        </span>
+                                        <p className="text-lg mr-3 text-gray-900 font-semibold">
+                                            {todo.completed ? '[DONE]' : '[PENDING]'}
+                                        </p>
                                         <h3 className={`text-lg font-semibold ${
                                             todo.completed 
                                                 ? 'text-gray-500 line-through' 
