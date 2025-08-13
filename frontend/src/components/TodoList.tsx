@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Todo } from '@/types/todo';
-import { getTodos } from '@/lib/api';
+import { getTodos, deleteTodo } from '@/lib/api';
 import TodoForm from './TodoForm';
 
 export default function TodoList() {
@@ -10,6 +10,8 @@ export default function TodoList() {
     const [todos, setTodos] = useState<Todo[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
+    const [deleting, setDeleting] = useState<number | null>(null); // ← Nuevo estado
+
 
     async function loadTodos() {
         try {
@@ -24,6 +26,19 @@ export default function TodoList() {
             setLoading(false);
         }
     }
+
+    const handleDeleteTodo = async (id: number) => {
+        try {
+            setDeleting(id);
+            await deleteTodo(id);
+            setTodos(prevTodos => prevTodos.filter(todo => todo.id !== id));
+        } catch (err) {
+            console.error(err);
+            setError('Error al eliminar el TODO');
+        } finally {
+            setDeleting(null);
+        }
+    };
 
     // cargar los TODOs al montar el componente
     useEffect(() => {
@@ -110,8 +125,11 @@ export default function TodoList() {
                                     <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
                                         Editar
                                     </button>
-                                    <button className="text-red-600 hover:text-red-800 text-sm font-medium">
-                                        Eliminar
+                                    <button onClick={() => handleDeleteTodo(todo.id)}
+                                        disabled={deleting === todo.id}
+                                        className="text-red-600 hover:text-red-800 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        {deleting === todo.id ? 'Eliminando...' : 'Eliminar'}
                                     </button>
                                 </div>
                             </div>
