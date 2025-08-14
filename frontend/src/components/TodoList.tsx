@@ -10,8 +10,7 @@ export default function TodoList() {
     const [todos, setTodos] = useState<Todo[]>([]);
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
-    const [deleting, setDeleting] = useState<number | null>(null); // ← Nuevo estado
-
+    const [deleting, setDeleting] = useState<number | null>(null); 
 
     async function loadTodos() {
         try {
@@ -120,7 +119,7 @@ export default function TodoList() {
                                         Creado: {new Date(todo.created_at).toLocaleDateString()}
                                     </p>
                                 </div>
-                                {/* 🔧 BOTONES DE ACCIÓN */}
+                                {/* BOTONES DE ACCIÓN */}
                                 <div className="flex space-x-2 ml-4">
                                     <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
                                         Editar
