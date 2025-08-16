@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Todo } from '@/types/todo';
-import { getTodos, deleteTodo } from '@/lib/api';
+import { getTodos, deleteTodo, updateTodo } from '@/lib/api';
 import TodoForm from './TodoForm';
 
 export default function TodoList() {
@@ -11,6 +11,7 @@ export default function TodoList() {
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
     const [deleting, setDeleting] = useState<number | null>(null); 
+    const [toggling, setToggling] = useState<number | null>(null);
 
     async function loadTodos() {
         try {
@@ -38,6 +39,40 @@ export default function TodoList() {
             setDeleting(null);
         }
     };
+
+    const handleToggleComplete = async (todo: Todo) => {
+        try {
+            setToggling(todo.id);
+            console.log('Toggling TODO:', todo.id);
+
+            const updatedData = {
+                completed: !todo.completed // Invertir el estado de completado
+            };
+
+            console.log('Updating TODO:', todo.id, 'with data:', updatedData);
+
+            const updatedTodo = await updateTodo(todo.id, updatedData);
+            console.log('Updated TODO:', updatedTodo);
+
+            // actualizar lista local
+            setTodos(prevTodos => 
+                prevTodos.map(t => 
+                    t.id === todo.id 
+                        ? { ...t, completed: updatedData.completed }
+                        : t
+                )
+            );
+
+            console.log('TODO updated successfully:', updatedTodo);
+
+        } catch (err) {
+            console.error('Error updating TODO:', err);
+            setError('Error al actualizar el TODO');
+           
+        } finally {
+            setToggling(null);
+        }
+    }
 
     // cargar los TODOs al montar el componente
     useEffect(() => {
@@ -99,9 +134,29 @@ export default function TodoList() {
                             <div className="flex items-start justify-between">
                                 <div className="flex-1">
                                     <div className="flex items-center mb-2">
-                                        <p className="text-lg mr-3 text-gray-900 font-semibold">
-                                            {todo.completed ? '[DONE]' : '[PENDING]'}
-                                        </p>
+                                        {/* Toggle Complete */}
+                                        <button
+                                            onClick={() => handleToggleComplete(todo)}
+                                            disabled={toggling === todo.id}
+                                            className={`w-5 h-5 rounded-full border-2 mr-3 flex items-center justify-center transition-all duration-200 ${
+                                                toggling === todo.id
+                                                    ? 'border-blue-500 bg-blue-50' // Estado loading
+                                                    : todo.completed 
+                                                        ? 'bg-green-500 border-green-500 hover:bg-green-600' // Completado
+                                                        : 'border-gray-300 hover:border-gray-400' // Pendiente
+                                            } ${toggling === todo.id ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                                        >
+                                            {/* Toggle button */}
+                                            {toggling === todo.id ? (
+                                                // LOADING SPINNER
+                                                <div className="w-3 h-3 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                                            ) : todo.completed ? (
+                                                // CHECKMARK
+                                                <svg className="w-3 h-3 text-white" fill="currentColor" viewBox="0 0 20 20">
+                                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                                </svg>
+                                            ) : null}
+                                        </button>
                                         <h3 className={`text-lg font-semibold ${
                                             todo.completed 
                                                 ? 'text-gray-500 line-through' 
