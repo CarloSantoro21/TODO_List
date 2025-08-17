@@ -12,6 +12,10 @@ export default function TodoList() {
     const [error, setError] = useState<string | null>(null);
     const [deleting, setDeleting] = useState<number | null>(null); 
     const [toggling, setToggling] = useState<number | null>(null);
+    const [editing, setEditing] = useState<number | null>(null);
+    const [editTitle, setEditTitle] = useState<string>('');
+    const [editDescription, setEditDescription] = useState<string>('');
+    const [updating, setUpdating] = useState<boolean>(false);
 
     async function loadTodos() {
         try {
@@ -25,7 +29,7 @@ export default function TodoList() {
         } finally {
             setLoading(false);
         }
-    }
+    };
 
     const handleDeleteTodo = async (id: number) => {
         try {
@@ -72,7 +76,55 @@ export default function TodoList() {
         } finally {
             setToggling(null);
         }
-    }
+    };
+
+    const handleStartEdit = (todo: Todo) => {
+        setEditing(todo.id);
+        setEditTitle(todo.title);
+        setEditDescription(todo.description);
+    };
+
+    const handleCancelEdit = () => {
+        setEditing(null);
+        setEditTitle('');
+        setEditDescription('');
+    };
+
+    const handleSaveEdit = async (todoId: number) => {
+        try {
+            if (!editTitle.trim()) {
+                setError('El título es obligatorio');
+                return;
+            }
+
+            setUpdating(true);
+
+            const updateData = {
+                title: editTitle,
+                description: editDescription
+            };
+
+            const updatedTodo = await updateTodo(todoId, updateData);
+
+            setTodos(prevTodos =>
+                prevTodos.map(t =>
+                    t.id === todoId
+                        ? { ...t, title: updatedTodo.title, description: updatedTodo.description }
+                        : t
+                )
+            );
+
+            setEditing(null);
+            setEditTitle('');
+            setEditDescription('');
+
+        } catch (err) {
+            console.error('Error updating TODO:', err);
+            setError('Error al actualizar el TODO');
+        } finally {
+            setUpdating(false);
+        }
+    };
 
     // cargar los TODOs al montar el componente
     useEffect(() => {
@@ -157,34 +209,91 @@ export default function TodoList() {
                                                 </svg>
                                             ) : null}
                                         </button>
-                                        <h3 className={`text-lg font-semibold ${
-                                            todo.completed 
-                                                ? 'text-gray-500 line-through' 
-                                                : 'text-gray-900'
+                                        {/* Título */}
+                                        {editing === todo.id ? (
+                                            // MODO EDICIÓN: INPUT
+                                            <input
+                                                type="text"
+                                                value={editTitle}
+                                                onChange={(e) => setEditTitle(e.target.value)}
+                                                className="text-lg font-semibold bg-white border border-blue-300 rounded px-2 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 text-gray-900"
+                                                disabled={updating}
+                                            />
+                                        ) : (
+                                            // MODO NORMAL: TEXTO
+                                            <h3 className={`text-lg font-semibold ${
+                                                todo.completed 
+                                                    ? 'text-gray-500 line-through' 
+                                                    : 'text-gray-900'
                                             }`}>
-                                            {todo.title}
-                                        </h3>
+                                                {todo.title}
+                                            </h3>
+                                        )}
                                     </div>
-                                    <p className={`text-sm ml-11 ${
-                                        todo.completed ? 'text-gray-400' : 'text-gray-600'
-                                    }`}>
-                                        {todo.description}
-                                    </p>
+
+                                    {/* Descripción */}
+                                    {editing === todo.id ? (
+                                        // MODO EDICIÓN: TEXTAREA
+                                        <textarea
+                                            value={editDescription}
+                                            onChange={(e) => setEditDescription(e.target.value)}
+                                            className="w-full ml-8 bg-white border border-blue-300 rounded px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900"
+                                            rows={2}
+                                            disabled={updating}
+                                        />
+                                    ) : (
+                                        // MODO NORMAL: TEXTO
+                                        <p className={`text-sm ml-8 ${
+                                            todo.completed ? 'text-gray-400' : 'text-gray-600'
+                                        }`}>
+                                            {todo.description}
+                                        </p>
+                                    )}
+                                    
                                     <p className="text-xs text-gray-400 ml-11 mt-2">
                                         Creado: {new Date(todo.created_at).toLocaleDateString()}
                                     </p>
                                 </div>
+
                                 {/* BOTONES DE ACCIÓN */}
                                 <div className="flex space-x-2 ml-4">
-                                    <button className="text-blue-600 hover:text-blue-800 text-sm font-medium">
-                                        Editar
-                                    </button>
-                                    <button onClick={() => handleDeleteTodo(todo.id)}
-                                        disabled={deleting === todo.id}
-                                        className="text-red-600 hover:text-red-800 text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-                                    >
-                                        {deleting === todo.id ? 'Eliminando...' : 'Eliminar'}
-                                    </button>
+                                    {editing === todo.id ? (
+                                        // BOTONES DE EDICIÓN
+                                        <>
+                                            <button
+                                                onClick={() => handleSaveEdit(todo.id)}
+                                                disabled={updating || !editTitle.trim()}
+                                                className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                            >
+                                                {updating ? 'Guardando...' : 'Guardar'}
+                                            </button>
+                                            <button
+                                                onClick={handleCancelEdit}
+                                                disabled={updating}
+                                                className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                            >
+                                                Cancelar
+                                            </button>
+                                        </>
+                                    ) : (
+                                        // BOTONES NORMALES
+                                        <>
+                                            <button
+                                                onClick={() => handleStartEdit(todo)}
+                                                disabled={editing !== null || deleting === todo.id || toggling === todo.id}
+                                                className="bg-blue-600 text-white px-3 py-1 rounded text-sm hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                            >
+                                                Editar
+                                            </button>
+                                            <button 
+                                                onClick={() => handleDeleteTodo(todo.id)}
+                                                disabled={deleting === todo.id || editing !== null}
+                                                className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                                            >
+                                                {deleting === todo.id ? 'Eliminando...' : 'Eliminar'}
+                                            </button>
+                                        </>
+                                    )}
                                 </div>
                             </div>
                         </div>
